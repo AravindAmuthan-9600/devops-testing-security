@@ -12,14 +12,16 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    url: '<YOUR_GITHUB_REPO_URL>'
+                    url: 'https://github.com/AravindAmuthan-9600/devops-testing-security.git'
             }
         }
 
         stage('Install Dependencies') {
             steps {
                 sh '''
-                    python3 -m pip install -r requirements.txt
+                    python3 -m venv venv
+                    ./venv/bin/pip install --upgrade pip
+                    ./venv/bin/pip install -r requirements.txt
                 '''
             }
         }
@@ -27,7 +29,7 @@ pipeline {
         stage('Unit Testing - PyTest') {
             steps {
                 sh '''
-                    pytest test_app.py
+                    ./venv/bin/pytest test_app.py
                 '''
             }
         }
@@ -101,7 +103,7 @@ pipeline {
         stage('UI Testing - Selenium') {
             steps {
                 sh '''
-                    pytest selenium/test_ui.py
+                    ./venv/bin/pytest selenium/test_ui.py
                 '''
             }
         }
