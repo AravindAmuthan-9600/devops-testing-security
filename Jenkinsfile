@@ -3,8 +3,8 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "myapp"
-        IMAGE_TAG  = "v1"
+        IMAGE_NAME = "devops-security-testing"
+        IMAGE_TAG = "v1"
     }
 
     stages {
@@ -24,10 +24,10 @@ pipeline {
             }
         }
 
-        stage('Unit Testing') {
+        stage('Unit Testing - PyTest') {
             steps {
                 sh '''
-                    pytest
+                    pytest test_app.py
                 '''
             }
         }
@@ -45,7 +45,8 @@ pipeline {
         stage('Docker Build') {
             steps {
                 sh '''
-                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    docker build \
+                    -t ${IMAGE_NAME}:${IMAGE_TAG} .
                 '''
             }
         }
@@ -61,12 +62,57 @@ pipeline {
             }
         }
 
-        stage('Docker Image Check') {
+        stage('Run Application') {
             steps {
                 sh '''
-                    docker images
+                    docker rm -f devops-app || true
+
+                    docker run -d \
+                    --name devops-app \
+                    -p 5000:5000 \
+                    ${IMAGE_NAME}:${IMAGE_TAG}
+
+                    sleep 10
                 '''
             }
+        }
+
+        stage('API Testing - Newman') {
+            steps {
+                sh '''
+                    newman run postman/api-tests.json
+                '''
+            }
+        }
+
+        stage('OWASP ZAP Scan') {
+            steps {
+                sh '''
+                    docker run --rm \
+                    --network host \
+                    zaproxy/zap-stable \
+                    zap-baseline.py \
+                    -t http://localhost:5000 \
+                    -r zap-report.html
+                '''
+            }
+        }
+
+        stage('UI Testing - Selenium') {
+            steps {
+                sh '''
+                    pytest selenium/test_ui.py
+                '''
+            }
+        }
+    }
+
+    post {
+
+        always {
+            sh '''
+                docker rm -f devops-app || true
+            '''
         }
     }
 }
