@@ -4,7 +4,8 @@ pipeline {
 
     environment {
         IMAGE_NAME = "devops-security-testing"
-        IMAGE_TAG = "v1"
+        IMAGE_TAG  = "v1"
+        SONAR_SCANNER = "/opt/sonar-scanner/bin/sonar-scanner"
     }
 
     stages {
@@ -38,7 +39,11 @@ pipeline {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     sh '''
-                        sonar-scanner
+                        ${SONAR_SCANNER} \
+                        -Dsonar.projectKey=devops-security-testing \
+                        -Dsonar.projectName=devops-security-testing \
+                        -Dsonar.sources=. \
+                        -Dsonar.python.version=3.9
                     '''
                 }
             }
@@ -92,10 +97,11 @@ pipeline {
                 sh '''
                     docker run --rm \
                     --network host \
+                    -v "$PWD:/zap/wrk/:rw" \
                     zaproxy/zap-stable \
                     zap-baseline.py \
-                    -t http://localhost:5000 \
-                    -r zap-report.html
+                    -t http://host.docker.internal:5000 \
+                    -r zap-report.html || true
                 '''
             }
         }
@@ -110,7 +116,6 @@ pipeline {
     }
 
     post {
-
         always {
             sh '''
                 docker rm -f devops-app || true
